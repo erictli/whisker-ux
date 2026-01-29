@@ -1,0 +1,18 @@
+# Source (we ship compiled dist/)
+src/
+tsconfig.json
+
+# Test output
+.whisker/
+
+# Dev files
+.github/
+TODO.md
+.claude/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store

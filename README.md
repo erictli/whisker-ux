@@ -1,0 +1,234 @@
+# Whisker
+
+AI-powered usability testing CLI. Whisker uses Claude's computer use capability to navigate your website like a real user, identifying UX issues, bugs, and accessibility problems.
+
+```
+╭────────────────────────────────────────────────────────────────────╮
+│                                                                    │
+│  WHISKER v0.1.0                                                    │
+│  AI-Powered Usability Testing                                      │
+│                                                                    │
+│   _._     _,-'""`-._                                               │
+│  (,-.`._,'(       |`-/|                                            │
+│      `-.-' \ )-`( , o o)                                           │
+│            `-    \`_`"'-                                           │
+│                                                                    │
+╰────────────────────────────────────────────────────────────────────╯
+```
+
+## Features
+
+- **AI-Powered Navigation**: Claude navigates your site like a real user, completing tasks and noting issues
+- **Think-Aloud Testing**: Get insights into user confusion and friction points
+- **Comprehensive Reports**: Detailed findings with severity levels, reproduction steps, and suggested fixes
+- **Screenshot Documentation**: Every step is captured for easy reference
+- **Bug Detection**: Catches console errors, network failures, and visual issues
+- **Developer-Friendly Output**: Includes grep patterns to find relevant code
+
+## Installation
+
+```bash
+npm install -g whisker-ux
+```
+
+Or run directly with npx:
+
+```bash
+npx whisker-ux "Sign up for an account" --url https://your-site.com
+```
+
+## Quick Start
+
+1. **Set up your Anthropic API key**:
+
+```bash
+whisker setup
+```
+
+Or set the environment variable:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+2. **Run a usability test**:
+
+```bash
+whisker "Add a product to the shopping cart" --url http://localhost:3000
+```
+
+3. **View the results** in `.whisker/report.md`
+
+## Usage
+
+```bash
+whisker <task> --url <url> [options]
+```
+
+### Arguments
+
+- `<task>` - The task to complete (e.g., "Sign up for an account", "Find the pricing page")
+
+### Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-u, --url <url>` | URL of the site to test (required) | - |
+| `-p, --persona <persona>` | Persona description for the tester | - |
+| `-m, --max-steps <number>` | Maximum navigation steps | 50 |
+| `-v, --viewport <WxH>` | Viewport size | 1280x800 |
+| `-o, --output <dir>` | Output directory | .whisker |
+
+### Examples
+
+**Basic test:**
+```bash
+whisker "Find the contact page" --url https://example.com
+```
+
+**With persona:**
+```bash
+whisker "Complete the checkout flow" \
+  --url http://localhost:3000 \
+  --persona "First-time user, not tech-savvy, age 65"
+```
+
+**Custom viewport (mobile):**
+```bash
+whisker "Navigate to settings" \
+  --url https://myapp.com \
+  --viewport 375x667
+```
+
+**Limit steps:**
+```bash
+whisker "Find pricing information" \
+  --url https://startup.com \
+  --max-steps 10
+```
+
+## Output
+
+Whisker generates three outputs in the `.whisker` directory:
+
+```
+.whisker/
+├── report.md           # Human-readable findings report
+├── report.json         # Structured JSON for automation
+└── screenshots/
+    ├── step-001.png
+    ├── step-002.png
+    └── ...
+```
+
+### Report Structure
+
+The report includes:
+
+- **Task completion status** - Whether the AI successfully completed the task
+- **Summary** - Overview of the testing session
+- **Findings** - Detailed issues organized by priority:
+  - 🔴 P0 - Critical, blocking issues
+  - 🟠 P1 - Major problems
+  - 🟡 P2 - Minor issues
+  - 💡 P3 - Suggestions
+- **Console errors** - JavaScript errors detected
+- **Network failures** - Failed API calls and requests
+
+### Finding Details
+
+Each finding includes:
+
+- Severity and category (bug, ux-friction, accessibility, performance, visual, copy)
+- Description with expected vs actual behavior
+- Steps to reproduce
+- Screenshot reference
+- Suggested fix
+- Grep patterns to find relevant code
+
+## Commands
+
+### `whisker setup`
+
+Configure your Anthropic API key interactively.
+
+### `whisker logout`
+
+Remove your stored API key.
+
+### `whisker run <task>` (default)
+
+Run a usability test. This is the default command.
+
+## Configuration
+
+### API Key
+
+Whisker looks for your Anthropic API key in this order:
+
+1. `ANTHROPIC_API_KEY` environment variable
+2. `~/.whisker/config.json` (set via `whisker setup`)
+
+### Requirements
+
+- Node.js 18+
+- Anthropic API key with access to Claude's computer use capability
+
+## Programmatic Usage
+
+```typescript
+import { runSession, writeReport, WhiskerConfig } from 'whisker-ux';
+
+const config: WhiskerConfig = {
+  task: "Sign up for an account",
+  url: "https://example.com",
+  maxSteps: 50,
+  viewport: { width: 1280, height: 800 },
+  outputDir: ".whisker"
+};
+
+const { report, sessionLog } = await runSession(config);
+await writeReport(report, sessionLog, config.outputDir);
+
+console.log(`Task completed: ${report.taskCompleted}`);
+console.log(`Found ${report.findings.length} issues`);
+```
+
+## Troubleshooting
+
+### "No Anthropic API key configured"
+
+Run `whisker setup` or set the `ANTHROPIC_API_KEY` environment variable.
+
+### Playwright browser issues
+
+Whisker uses Playwright's Chromium. If you encounter browser issues:
+
+```bash
+npx playwright install chromium
+```
+
+### Rate limiting
+
+If you hit API rate limits, reduce `--max-steps` or wait before retrying.
+
+### Browser not visible
+
+The browser window should appear during testing. If it doesn't, ensure you're not running in a headless environment.
+
+## How It Works
+
+1. **Launch**: Opens a visible Chromium browser at your URL
+2. **Navigate**: Claude sees the screen and decides what actions to take (click, type, scroll)
+3. **Think Aloud**: Claude narrates its thought process, noting confusion or issues
+4. **Capture**: Screenshots are taken after each action
+5. **Analyze**: Claude reviews the session observations and screenshots to identify issues that may not be obvious during navigation
+6. **Report**: Results are saved as markdown and JSON
+
+## License
+
+MIT
+
+## Contributing
+
+Issues and pull requests welcome at [github.com/ericli/whisker-ux](https://github.com/ericli/whisker-ux).

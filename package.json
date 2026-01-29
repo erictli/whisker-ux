@@ -1,0 +1,59 @@
+{
+  "name": "whisker-ux",
+  "version": "0.1.0",
+  "description": "AI-powered usability testing CLI using Claude computer use",
+  "type": "module",
+  "bin": {
+    "whisker": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "postinstall": "npx playwright install chromium"
+  },
+  "keywords": [
+    "usability",
+    "testing",
+    "ux",
+    "ai",
+    "claude",
+    "anthropic",
+    "computer-use",
+    "playwright",
+    "automation",
+    "accessibility",
+    "qa"
+  ],
+  "author": "Eric Li",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ericli/whisker-ux.git"
+  },
+  "homepage": "https://github.com/ericli/whisker-ux#readme",
+  "bugs": {
+    "url": "https://github.com/ericli/whisker-ux/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "commander": "^13.1.0",
+    "playwright": "^1.50.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
