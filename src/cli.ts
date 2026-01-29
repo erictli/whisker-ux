@@ -52,6 +52,7 @@ program
   .option("-m, --max-steps <number>", "Maximum number of steps", "50")
   .option("-v, --viewport <WxH>", "Viewport size (e.g., 1280x800)", "1280x800")
   .option("-o, --output <dir>", "Output directory", ".whisker")
+  .option("-w, --screenshot-window <number>", "Screenshots to keep in context (reduces token usage)", "5")
   .action(async (task: string, opts: Record<string, string>) => {
     // Get API key from config or environment
     const apiKey = getApiKey();
@@ -97,6 +98,13 @@ program
       process.exit(1);
     }
 
+    // Parse screenshot window
+    const screenshotWindow = parseInt(opts.screenshotWindow, 10);
+    if (isNaN(screenshotWindow) || screenshotWindow <= 0) {
+      printError("screenshot-window must be a positive integer");
+      process.exit(1);
+    }
+
     const config: WhiskerConfig = {
       task,
       url: opts.url,
@@ -104,6 +112,7 @@ program
       maxSteps,
       viewport: { width, height },
       outputDir: opts.output,
+      screenshotWindow,
     };
 
     // Print banner and config
