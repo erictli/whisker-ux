@@ -245,18 +245,22 @@ export function listAuthStates(): AuthStateInfo[] {
     const files = fs.readdirSync(AUTH_DIR);
     for (const file of files) {
       if (file.endsWith(".json")) {
-        const name = file.slice(0, -5); // Remove .json extension
-        const filePath = path.join(AUTH_DIR, file);
-        const stat = fs.statSync(filePath);
-        states.push({
-          name,
-          savedAt: stat.mtime.toISOString(),
-          filePath,
-        });
+        try {
+          const name = file.slice(0, -5); // Remove .json extension
+          const filePath = path.join(AUTH_DIR, file);
+          const stat = fs.statSync(filePath);
+          states.push({
+            name,
+            savedAt: stat.mtime.toISOString(),
+            filePath,
+          });
+        } catch {
+          // Skip files that can't be read (e.g., deleted between readdir and stat)
+        }
       }
     }
   } catch {
-    // Ignore errors
+    // Ignore directory read errors
   }
 
   return states.sort((a, b) => a.name.localeCompare(b.name));

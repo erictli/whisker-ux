@@ -19,6 +19,9 @@ export async function runAuthCapture(options: AuthCaptureOptions): Promise<void>
     );
   }
 
+  // Ensure auth directory exists early (fail fast if permissions issue)
+  ensureAuthDir();
+
   console.log("");
   console.log(`Saving auth state as: ${name}`);
   console.log(`Opening: ${url}`);
@@ -43,9 +46,6 @@ export async function runAuthCapture(options: AuthCaptureOptions): Promise<void>
     printLoginPrompt();
     await waitForEnterKey();
     printLoginComplete();
-
-    // Ensure auth directory exists with proper permissions
-    ensureAuthDir();
 
     // Save storage state
     const authPath = getAuthStatePath(name);
