@@ -16,14 +16,14 @@ AI-powered usability testing CLI. Whisker uses Claude's computer use capability 
 ╰────────────────────────────────────────────────────────────────────╯
 ```
 
-## Features
+## How It Works
 
-- **AI-Powered Navigation**: Claude navigates your site like a real user, completing tasks and noting issues
-- **Think-Aloud Testing**: Get insights into user confusion and friction points
-- **Comprehensive Reports**: Detailed findings with severity levels, reproduction steps, and suggested fixes
-- **Screenshot Documentation**: Every step is captured for easy reference
-- **Bug Detection**: Catches console errors, network failures, and visual issues
-- **Developer-Friendly Output**: Includes grep patterns to find relevant code
+1. **Launch**: Opens a visible Chromium browser at your URL
+2. **Navigate**: Claude sees the screen and decides what actions to take (click, type, scroll)
+3. **Think Aloud**: Claude narrates its thought process, noting confusion or issues
+4. **Capture**: Screenshots are taken after each action
+5. **Analyze**: Claude reviews the session to identify UX issues, bugs, and accessibility problems
+6. **Report**: Generates detailed findings with severity levels, reproduction steps, and suggested fixes
 
 ## Quick Start
 
@@ -128,7 +128,7 @@ whisker "Find pricing information" \
 
 ## Output
 
-Whisker generates three outputs in the `.whisker` directory:
+Whisker generates a report with task completion status, a summary, and detailed findings organized by severity (P0-P3). Each finding includes reproduction steps, screenshot references, and suggested fixes.
 
 ```
 .whisker/
@@ -139,31 +139,6 @@ Whisker generates three outputs in the `.whisker` directory:
     ├── step-002.png
     └── ...
 ```
-
-### Report Structure
-
-The report includes:
-
-- **Task completion status** - Whether the AI successfully completed the task
-- **Summary** - Overview of the testing session
-- **Findings** - Detailed issues organized by priority:
-  - 🔴 P0 - Critical, blocking issues
-  - 🟠 P1 - Major problems
-  - 🟡 P2 - Minor issues
-  - 💡 P3 - Suggestions
-- **Console errors** - JavaScript errors detected
-- **Network failures** - Failed API calls and requests
-
-### Finding Details
-
-Each finding includes:
-
-- Severity and category (bug, ux-friction, accessibility, performance, visual, copy)
-- Description with expected vs actual behavior
-- Steps to reproduce
-- Screenshot reference
-- Suggested fix
-- Grep patterns to find relevant code
 
 ## Commands
 
@@ -236,15 +211,6 @@ If you hit API rate limits, reduce `--max-steps` or wait before retrying.
 ### Browser not visible
 
 The browser window should appear during testing. If it doesn't, ensure you're not running in a headless environment.
-
-## How It Works
-
-1. **Launch**: Opens a visible Chromium browser at your URL
-2. **Navigate**: Claude sees the screen and decides what actions to take (click, type, scroll)
-3. **Think Aloud**: Claude narrates its thought process, noting confusion or issues
-4. **Capture**: Screenshots are taken after each action
-5. **Analyze**: Claude reviews the session observations and screenshots to identify issues that may not be obvious during navigation
-6. **Report**: Results are saved as markdown and JSON
 
 ## License
 
