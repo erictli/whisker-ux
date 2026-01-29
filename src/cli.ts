@@ -20,6 +20,14 @@ interface RunOptions {
   auth?: string;
 }
 
+// Validate auth state name to prevent path traversal attacks
+// Only allow alphanumeric characters, underscores, and hyphens
+const AUTH_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+function validateAuthName(name: string): boolean {
+  return AUTH_NAME_PATTERN.test(name) && name.length > 0 && name.length <= 64;
+}
+
 // Read version from package.json
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf-8"));
@@ -110,6 +118,15 @@ program
       process.exit(1);
     }
 
+    // Validate auth name if provided
+    if (opts.auth && !validateAuthName(opts.auth)) {
+      printError(
+        `Invalid auth name "${opts.auth}".\n` +
+        `Names must contain only letters, numbers, underscores, and hyphens (max 64 chars).`
+      );
+      process.exit(1);
+    }
+
     const config: WhiskerConfig = {
       task,
       url: opts.url,
@@ -160,6 +177,15 @@ authCommand
   .requiredOption("-u, --url <url>", "URL to open for login")
   .option("-v, --viewport <WxH>", "Viewport size (e.g., 1280x800)", "1280x800")
   .action(async (name: string, opts: { url: string; viewport: string }) => {
+    // Validate auth name to prevent path traversal
+    if (!validateAuthName(name)) {
+      printError(
+        `Invalid auth name "${name}".\n` +
+        `Names must contain only letters, numbers, underscores, and hyphens (max 64 chars).`
+      );
+      process.exit(1);
+    }
+
     // Parse viewport
     const viewportParts = opts.viewport.split("x");
     if (viewportParts.length !== 2) {
@@ -217,6 +243,15 @@ authCommand
   .command("delete <name>")
   .description("Delete a saved authentication state")
   .action((name: string) => {
+    // Validate auth name to prevent path traversal
+    if (!validateAuthName(name)) {
+      printError(
+        `Invalid auth name "${name}".\n` +
+        `Names must contain only letters, numbers, underscores, and hyphens (max 64 chars).`
+      );
+      process.exit(1);
+    }
+
     if (!authStateExists(name)) {
       printError(`Auth state "${name}" not found.`);
       process.exit(1);
