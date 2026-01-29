@@ -7,6 +7,7 @@ export interface WhiskerConfig {
   outputDir: string;
   interactiveLogin?: boolean;
   authStateName?: string;
+  screenshotWindow?: number; // Number of screenshots to keep in navigation context (default: 5)
 }
 
 export interface ComputerAction {

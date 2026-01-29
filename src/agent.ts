@@ -16,12 +16,98 @@ import { printTestStart, startSpinner, stopSpinner, startWaitingSpinner, clearSp
 
 const MODEL = "claude-sonnet-4-5-20250929";
 const MAX_SCREENSHOTS_FOR_ANALYSIS = 10; // Limit screenshots sent to analysis phase
+const DEFAULT_SCREENSHOT_WINDOW = 5; // Keep last N screenshots in navigation context
 const BETA_FLAG = "computer-use-2025-01-24";
 
 type BetaMessage = Anthropic.Beta.Messages.BetaMessage;
 type BetaMessageParam = Anthropic.Beta.Messages.BetaMessageParam;
 type BetaContentBlockParam = Anthropic.Beta.Messages.BetaContentBlockParam;
 type BetaToolResultBlockParam = Anthropic.Beta.Messages.BetaToolResultBlockParam;
+
+/**
+ * Prunes old screenshots from messages to reduce token usage.
+ * Keeps only the last `maxScreenshots` screenshots, replacing older ones with text placeholders.
+ * This dramatically reduces context size for long sessions while preserving recent visual context.
+ *
+ * Tracks individual (messageIndex, blockIndex) pairs to handle messages with multiple screenshots correctly.
+ */
+function pruneOldScreenshots(
+  messages: BetaMessageParam[],
+  maxScreenshots: number
+): BetaMessageParam[] {
+  // Find all screenshot locations as (messageIndex, blockIndex) pairs, newest first
+  const screenshotLocations: Array<{ msgIdx: number; blockIdx: number }> = [];
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === "user" && Array.isArray(msg.content)) {
+      // Iterate blocks in reverse to maintain newest-first order within each message
+      for (let j = msg.content.length - 1; j >= 0; j--) {
+        const block = msg.content[j];
+        if (
+          typeof block === "object" &&
+          block !== null &&
+          "type" in block &&
+          block.type === "tool_result" &&
+          "content" in block &&
+          Array.isArray(block.content)
+        ) {
+          const hasImage = block.content.some(
+            (c: unknown) =>
+              typeof c === "object" && c !== null && "type" in c && (c as { type: string }).type === "image"
+          );
+          if (hasImage) {
+            screenshotLocations.push({ msgIdx: i, blockIdx: j });
+          }
+        }
+      }
+    }
+  }
+
+  // If within limit, return as-is
+  if (screenshotLocations.length <= maxScreenshots) {
+    return messages;
+  }
+
+  // Build set of block locations to prune (older screenshots beyond the window)
+  const locationsToPrune = new Set(
+    screenshotLocations.slice(maxScreenshots).map(loc => `${loc.msgIdx}:${loc.blockIdx}`)
+  );
+
+  // Create pruned copy, only replacing specific blocks
+  return messages.map((msg, msgIdx) => {
+    if (msg.role === "user" && Array.isArray(msg.content)) {
+      // Check if any blocks in this message need pruning
+      const hasBlocksToPrune = msg.content.some((_, blockIdx) =>
+        locationsToPrune.has(`${msgIdx}:${blockIdx}`)
+      );
+
+      if (!hasBlocksToPrune) return msg;
+
+      const newContent = msg.content.map((block, blockIdx) => {
+        if (!locationsToPrune.has(`${msgIdx}:${blockIdx}`)) return block;
+
+        if (
+          typeof block === "object" &&
+          block !== null &&
+          "type" in block &&
+          block.type === "tool_result" &&
+          "content" in block &&
+          Array.isArray(block.content)
+        ) {
+          // Replace image content with text placeholder
+          return {
+            ...block,
+            content: "[Screenshot removed from context to save tokens]",
+          };
+        }
+        return block;
+      });
+      return { ...msg, content: newContent };
+    }
+    return msg;
+  });
+}
 
 export async function runSession(config: WhiskerConfig): Promise<{
   report: WhiskerReport;
@@ -75,9 +161,17 @@ async function navigationPhase(
     display_width_px: config.viewport.width,
     display_height_px: config.viewport.height,
     display_number: 1,
+    cache_control: { type: "ephemeral" },
   };
 
-  const systemPrompt = getNavigationSystemPrompt(config);
+  // Use array format with cache_control for prompt caching
+  const systemPrompt: Anthropic.Beta.Messages.BetaTextBlockParam[] = [
+    {
+      type: "text",
+      text: getNavigationSystemPrompt(config),
+      cache_control: { type: "ephemeral" },
+    },
+  ];
   const messages: BetaMessageParam[] = [
     {
       role: "user",
@@ -87,9 +181,14 @@ async function navigationPhase(
 
   let stepCount = 0;
 
+  const screenshotWindow = config.screenshotWindow ?? DEFAULT_SCREENSHOT_WINDOW;
+
   while (stepCount < config.maxSteps) {
     // Show waiting spinner while waiting for API response
     startWaitingSpinner();
+
+    // Prune old screenshots to reduce token usage
+    const prunedMessages = pruneOldScreenshots(messages, screenshotWindow);
 
     let response: BetaMessage;
     try {
@@ -98,7 +197,7 @@ async function navigationPhase(
         max_tokens: 4096,
         system: systemPrompt,
         tools: [computerTool],
-        messages,
+        messages: prunedMessages,
         betas: [BETA_FLAG],
       });
     } catch (err) {
@@ -126,6 +225,9 @@ async function navigationPhase(
         observations.push(block.text);
       }
     }
+
+    // Actions that don't change visual state - skip screenshot to save tokens
+    const SKIP_SCREENSHOT_ACTIONS = new Set(["mouse_move"]);
 
     // Second pass: process tool uses
     for (const block of response.content) {
@@ -155,11 +257,21 @@ async function navigationPhase(
           }
         }
 
-        // Take screenshot after action
-        const screenshotBase64 = await browser.takeScreenshot();
-
         // Print completed step
         stopSpinner(`Step ${stepCount}: ${actionDesc}`);
+
+        // Skip screenshot for non-visual actions to save tokens
+        if (SKIP_SCREENSHOT_ACTIONS.has(action.action)) {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: "Action completed. The page looks the same as before.",
+          });
+          continue;
+        }
+
+        // Take screenshot after action
+        const screenshotBase64 = await browser.takeScreenshot();
 
         steps.push({
           stepNumber: stepCount,
@@ -176,7 +288,7 @@ async function navigationPhase(
               type: "image",
               source: {
                 type: "base64",
-                media_type: "image/png",
+                media_type: "image/jpeg",
                 data: screenshotBase64,
               },
             },
@@ -281,7 +393,7 @@ async function reportPhase(
       type: "image",
       source: {
         type: "base64",
-        media_type: "image/png",
+        media_type: "image/jpeg",
         data: step.screenshotBase64,
       },
     });

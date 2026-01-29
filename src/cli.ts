@@ -18,6 +18,7 @@ interface RunOptions {
   output: string;
   login?: boolean;
   auth?: string;
+  screenshotWindow: string;
 }
 
 // Validate auth state name to prevent path traversal attacks
@@ -73,6 +74,7 @@ program
   .option("-o, --output <dir>", "Output directory", ".whisker")
   .option("-l, --login", "Pause for manual login before AI takes over")
   .option("-a, --auth <name>", "Use saved authentication state")
+  .option("-w, --screenshot-window <number>", "Screenshots to keep in context (reduces token usage)", "5")
   .action(async (task: string, opts: RunOptions) => {
     // Get API key from config or environment
     const apiKey = getApiKey();
@@ -127,6 +129,13 @@ program
       process.exit(1);
     }
 
+    // Parse screenshot window
+    const screenshotWindow = parseInt(opts.screenshotWindow, 10);
+    if (isNaN(screenshotWindow) || screenshotWindow <= 0) {
+      printError("screenshot-window must be a positive integer");
+      process.exit(1);
+    }
+
     const config: WhiskerConfig = {
       task,
       url: opts.url,
@@ -136,6 +145,7 @@ program
       outputDir: opts.output,
       interactiveLogin: opts.login,
       authStateName: opts.auth,
+      screenshotWindow,
     };
 
     // Print banner and config
