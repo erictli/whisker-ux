@@ -37,11 +37,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/erictli/whisker-ux.git"
+    "url": "git+https://github.com/getversive/whisker.git"
   },
-  "homepage": "https://github.com/erictli/whisker-ux#readme",
+  "homepage": "https://github.com/getversive/whisker#readme",
   "bugs": {
-    "url": "https://github.com/erictli/whisker-ux/issues"
+    "url": "https://github.com/getversive/whisker/issues"
   },
   "engines": {
     "node": ">=18.0.0"
