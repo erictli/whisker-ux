@@ -56,8 +56,20 @@ program
     // Get API key from config or environment
     const apiKey = getApiKey();
     if (!apiKey) {
+      const cwd = process.cwd();
+      const configPath = getConfigPath();
       printError(
-        `No Anthropic API key configured.\n\nRun setup: npx tsx src/cli.ts setup\nOr set env: export ANTHROPIC_API_KEY=sk-ant-...\n\nConfig: ${getConfigPath()}`
+        `No Anthropic API key found.\n\n` +
+        `Checked these locations:\n` +
+        `  • ANTHROPIC_API_KEY environment variable\n` +
+        `  • ${cwd}/.env.local\n` +
+        `  • ${cwd}/.env\n` +
+        `  • ${configPath}\n\n` +
+        `Quick setup - create a .env file:\n` +
+        `  echo "ANTHROPIC_API_KEY=sk-ant-..." > .env\n\n` +
+        `Or run interactive setup:\n` +
+        `  whisker setup\n\n` +
+        `Get your API key at: https://console.anthropic.com/settings/keys`
       );
       process.exit(1);
     }

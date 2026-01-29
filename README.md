@@ -25,39 +25,58 @@ AI-powered usability testing CLI. Whisker uses Claude's computer use capability 
 - **Bug Detection**: Catches console errors, network failures, and visual issues
 - **Developer-Friendly Output**: Includes grep patterns to find relevant code
 
-## Installation
+## Quick Start
+
+### 1. Install Whisker
 
 ```bash
 npm install -g whisker-ux
 ```
 
-Or run directly with npx:
+### 2. Get Your API Key
 
-```bash
-npx whisker-ux "Sign up for an account" --url https://your-site.com
-```
+Get an Anthropic API key from: https://console.anthropic.com/settings/keys
 
-## Quick Start
+### 3. Set Up Your Key
 
-1. **Set up your Anthropic API key**:
-
+**Option A: Interactive setup (recommended)**
 ```bash
 whisker setup
 ```
 
-Or set the environment variable:
-
+**Option B: Create a .env file**
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+echo "ANTHROPIC_API_KEY=sk-ant-your-key-here" > .env
 ```
 
-2. **Run a usability test**:
-
+**Option C: Environment variable**
 ```bash
-whisker "Add a product to the shopping cart" --url http://localhost:3000
+export ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
 
-3. **View the results** in `.whisker/report.md`
+### 4. Run a Test
+
+```bash
+whisker "Find the pricing page" --url https://your-site.com
+```
+
+### 5. View Results
+
+Open `.whisker/report.md` to see the findings.
+
+---
+
+## Run Without Installing (npx)
+
+If you prefer not to install globally:
+
+```bash
+# Set your API key first (choose one method from Step 3 above)
+export ANTHROPIC_API_KEY=sk-ant-your-key-here
+
+# Run with npx
+npx whisker-ux "Find the pricing page" --url https://your-site.com
+```
 
 ## Usage
 
@@ -167,7 +186,9 @@ Run a usability test. This is the default command.
 Whisker looks for your Anthropic API key in this order:
 
 1. `ANTHROPIC_API_KEY` environment variable
-2. `~/.config/whisker/config.json` (set via `whisker setup`)
+2. `.env.local` file in current directory (for local overrides)
+3. `.env` file in current directory
+4. `~/.config/whisker/config.json` (set via `whisker setup`)
 
 ### Requirements
 
