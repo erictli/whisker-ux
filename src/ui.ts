@@ -46,18 +46,15 @@ const DIVIDER = `${c.dim}${"· ".repeat(35)}${c.reset}`;
 // In-box divider (fits inside the box borders)
 const BOX_DIVIDER = `· `.repeat(33);
 
-export function printBanner(): void {
-  // Banner is now printed by printConfig which includes everything in one box
-}
-
 export function printConfig(
   task: string,
   url: string,
+  version: string,
   persona?: string,
   maxSteps?: number,
   viewport?: string,
 ): void {
-  const version = "v0.1.0";
+  const displayVersion = version.startsWith("v") ? version : `v${version}`;
 
   console.log("");
 
@@ -69,8 +66,8 @@ export function printConfig(
 
   // Title
   const title = "WHISKER";
-  const titleLine = `  ${c.brightWhite}${c.bold}${title}${c.reset} ${c.dim}${version}${c.reset}`;
-  const titlePadding = BOX_WIDTH - 2 - 2 - title.length - 1 - version.length;
+  const titleLine = `  ${c.brightWhite}${c.bold}${title}${c.reset} ${c.dim}${displayVersion}${c.reset}`;
+  const titlePadding = BOX_WIDTH - 2 - 2 - title.length - 1 - displayVersion.length;
   console.log(
     `${c.dim}│${c.reset}${titleLine}${" ".repeat(titlePadding)}${c.dim}│${c.reset}`,
   );
@@ -267,7 +264,6 @@ export function printResults(
     description: string;
   }>,
   outputDir: string,
-  _absoluteOutputDir?: string,
 ): void {
   console.log("");
   console.log("");
