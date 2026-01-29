@@ -419,3 +419,30 @@ function severityLabel(severity: string): string {
       return `${c.dim}[${severity.toUpperCase()}]${c.reset}`;
   }
 }
+
+export function printLoginPrompt(): void {
+  console.log("");
+  console.log(`${c.brightYellow}${c.bold}Manual Login Required${c.reset}`);
+  console.log(`${c.dim}Log in to the site in the browser window.${c.reset}`);
+  console.log(`${c.dim}Press Enter when ready to continue...${c.reset}`);
+}
+
+export function printLoginComplete(): void {
+  console.log(`${c.brightWhite}✓${c.reset} ${c.dim}Login complete, AI taking over${c.reset}`);
+  console.log("");
+}
+
+export async function waitForEnterKey(): Promise<void> {
+  const readline = await import("readline");
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question("", () => {
+      rl.close();
+      resolve();
+    });
+  });
+}

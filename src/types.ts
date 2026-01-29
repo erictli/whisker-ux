@@ -5,6 +5,8 @@ export interface WhiskerConfig {
   maxSteps: number;
   viewport: { width: number; height: number };
   outputDir: string;
+  interactiveLogin?: boolean;
+  authStateName?: string;
   screenshotWindow?: number; // Number of screenshots to keep in navigation context (default: 5)
 }
 

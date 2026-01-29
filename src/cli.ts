@@ -6,8 +6,28 @@ import { fileURLToPath } from "node:url";
 import { runSession } from "./agent.js";
 import { writeReport } from "./report.js";
 import { WhiskerConfig } from "./types.js";
-import { getApiKey, runSetup, getConfigPath, deleteApiKey } from "./config.js";
+import { getApiKey, runSetup, getConfigPath, deleteApiKey, listAuthStates, deleteAuthState, authStateExists, getAuthDir } from "./config.js";
 import { printConfig, printResults, printError } from "./ui.js";
+import { runAuthCapture } from "./auth.js";
+
+interface RunOptions {
+  url: string;
+  persona?: string;
+  maxSteps: string;
+  viewport: string;
+  output: string;
+  login?: boolean;
+  auth?: string;
+  screenshotWindow: string;
+}
+
+// Validate auth state name to prevent path traversal attacks
+// Only allow alphanumeric characters, underscores, and hyphens
+const AUTH_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+function validateAuthName(name: string): boolean {
+  return AUTH_NAME_PATTERN.test(name) && name.length > 0 && name.length <= 64;
+}
 
 // Read version from package.json
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -52,8 +72,10 @@ program
   .option("-m, --max-steps <number>", "Maximum number of steps", "50")
   .option("-v, --viewport <WxH>", "Viewport size (e.g., 1280x800)", "1280x800")
   .option("-o, --output <dir>", "Output directory", ".whisker")
+  .option("-l, --login", "Pause for manual login before AI takes over")
+  .option("-a, --auth <name>", "Use saved authentication state")
   .option("-w, --screenshot-window <number>", "Screenshots to keep in context (reduces token usage)", "5")
-  .action(async (task: string, opts: Record<string, string>) => {
+  .action(async (task: string, opts: RunOptions) => {
     // Get API key from config or environment
     const apiKey = getApiKey();
     if (!apiKey) {
@@ -98,6 +120,34 @@ program
       process.exit(1);
     }
 
+    // Validate auth name if provided
+    if (opts.auth && !validateAuthName(opts.auth)) {
+      printError(
+        `Invalid auth name "${opts.auth}".\n` +
+        `Names must contain only letters, numbers, underscores, and hyphens (max 64 chars).`
+      );
+      process.exit(1);
+    }
+
+    // Ensure --login and --auth are mutually exclusive
+    if (opts.login && opts.auth) {
+      printError(
+        `Cannot use --login and --auth together.\n` +
+        `Use --login for manual login, or --auth to use saved authentication state.`
+      );
+      process.exit(1);
+    }
+
+    // Validate auth state file exists
+    if (opts.auth && !authStateExists(opts.auth)) {
+      printError(
+        `Auth state "${opts.auth}" not found.\n\n` +
+        `Save it first with:\n` +
+        `  whisker auth save ${opts.auth} --url <login-url>`
+      );
+      process.exit(1);
+    }
+
     // Parse screenshot window
     const screenshotWindow = parseInt(opts.screenshotWindow, 10);
     if (isNaN(screenshotWindow) || screenshotWindow <= 0) {
@@ -112,6 +162,8 @@ program
       maxSteps,
       viewport: { width, height },
       outputDir: opts.output,
+      interactiveLogin: opts.login,
+      authStateName: opts.auth,
       screenshotWindow,
     };
 
@@ -138,6 +190,107 @@ program
       );
     } catch (err) {
       printError(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+// Auth command group
+const authCommand = program
+  .command("auth")
+  .description("Manage saved authentication states");
+
+// Auth save subcommand
+authCommand
+  .command("save <name>")
+  .description("Save browser auth state for reuse")
+  .requiredOption("-u, --url <url>", "URL to open for login")
+  .option("-v, --viewport <WxH>", "Viewport size (e.g., 1280x800)", "1280x800")
+  .action(async (name: string, opts: { url: string; viewport: string }) => {
+    // Validate auth name to prevent path traversal
+    if (!validateAuthName(name)) {
+      printError(
+        `Invalid auth name "${name}".\n` +
+        `Names must contain only letters, numbers, underscores, and hyphens (max 64 chars).`
+      );
+      process.exit(1);
+    }
+
+    // Parse viewport
+    const viewportParts = opts.viewport.split("x");
+    if (viewportParts.length !== 2) {
+      printError("Invalid viewport format. Use WxH (e.g., 1280x800)");
+      process.exit(1);
+    }
+    const width = parseInt(viewportParts[0], 10);
+    const height = parseInt(viewportParts[1], 10);
+    if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+      printError("Invalid viewport dimensions. Use positive integers.");
+      process.exit(1);
+    }
+
+    try {
+      await runAuthCapture({
+        url: opts.url,
+        name,
+        viewport: { width, height },
+      });
+    } catch (err) {
+      printError(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+// Auth list subcommand
+authCommand
+  .command("list")
+  .description("List saved authentication states")
+  .action(() => {
+    const states = listAuthStates();
+    if (states.length === 0) {
+      console.log("No saved authentication states.");
+      console.log("");
+      console.log("Save one with: whisker auth save <name> --url <login-url>");
+      return;
+    }
+
+    console.log("");
+    console.log("Saved authentication states:");
+    console.log("");
+    for (const state of states) {
+      const date = new Date(state.savedAt);
+      const dateStr = date.toLocaleDateString() + " " + date.toLocaleTimeString();
+      console.log(`  ${state.name}`);
+      console.log(`    Saved: ${dateStr}`);
+      console.log(`    Path:  ${state.filePath}`);
+      console.log("");
+    }
+    console.log(`Auth directory: ${getAuthDir()}`);
+  });
+
+// Auth delete subcommand
+authCommand
+  .command("delete <name>")
+  .description("Delete a saved authentication state")
+  .action((name: string) => {
+    // Validate auth name to prevent path traversal
+    if (!validateAuthName(name)) {
+      printError(
+        `Invalid auth name "${name}".\n` +
+        `Names must contain only letters, numbers, underscores, and hyphens (max 64 chars).`
+      );
+      process.exit(1);
+    }
+
+    if (!authStateExists(name)) {
+      printError(`Auth state "${name}" not found.`);
+      process.exit(1);
+    }
+
+    const deleted = deleteAuthState(name);
+    if (deleted) {
+      console.log(`Auth state "${name}" deleted.`);
+    } else {
+      printError(`Failed to delete auth state "${name}".`);
       process.exit(1);
     }
   });

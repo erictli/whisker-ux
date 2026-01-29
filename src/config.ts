@@ -5,6 +5,7 @@ import * as readline from "node:readline";
 
 const CONFIG_DIR = path.join(os.homedir(), ".config", "whisker");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
+const AUTH_DIR = path.join(CONFIG_DIR, "auth");
 
 interface WhiskerGlobalConfig {
   anthropicApiKey?: string;
@@ -205,4 +206,79 @@ export function deleteApiKey(): boolean {
     // Ignore errors
   }
   return false;
+}
+
+// Auth state management
+
+export interface AuthStateInfo {
+  name: string;
+  savedAt: string;
+  filePath: string;
+}
+
+export function getAuthStatePath(name: string): string {
+  return path.join(AUTH_DIR, `${name}.json`);
+}
+
+export function authStateExists(name: string): boolean {
+  return fs.existsSync(getAuthStatePath(name));
+}
+
+export function ensureAuthDir(): void {
+  fs.mkdirSync(AUTH_DIR, { recursive: true });
+  // Set directory permissions (read/write/execute only for owner)
+  try {
+    fs.chmodSync(AUTH_DIR, 0o700);
+  } catch {
+    // Ignore on platforms that don't support POSIX permissions
+  }
+}
+
+export function listAuthStates(): AuthStateInfo[] {
+  const states: AuthStateInfo[] = [];
+
+  try {
+    if (!fs.existsSync(AUTH_DIR)) {
+      return states;
+    }
+
+    const files = fs.readdirSync(AUTH_DIR);
+    for (const file of files) {
+      if (file.endsWith(".json")) {
+        try {
+          const name = file.slice(0, -5); // Remove .json extension
+          const filePath = path.join(AUTH_DIR, file);
+          const stat = fs.statSync(filePath);
+          states.push({
+            name,
+            savedAt: stat.mtime.toISOString(),
+            filePath,
+          });
+        } catch {
+          // Skip files that can't be read (e.g., deleted between readdir and stat)
+        }
+      }
+    }
+  } catch {
+    // Ignore directory read errors
+  }
+
+  return states.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function deleteAuthState(name: string): boolean {
+  try {
+    const filePath = getAuthStatePath(name);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      return true;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return false;
+}
+
+export function getAuthDir(): string {
+  return AUTH_DIR;
 }
