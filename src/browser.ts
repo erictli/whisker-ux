@@ -122,6 +122,26 @@ export class BrowserManager {
           `[${new Date().toISOString()}] Uncaught: ${err.message}`
         );
       });
+      newPage.on("response", (response) => {
+        if (response.status() >= 400) {
+          this.networkFailures.push({
+            url: response.url(),
+            method: response.request().method(),
+            status: response.status(),
+            statusText: response.statusText(),
+            timestamp: Date.now(),
+          });
+        }
+      });
+      newPage.on("requestfailed", (request) => {
+        this.networkFailures.push({
+          url: request.url(),
+          method: request.method(),
+          status: 0,
+          statusText: request.failure()?.errorText ?? "Request failed",
+          timestamp: Date.now(),
+        });
+      });
     });
 
     await this.page.goto(this.config.url, { waitUntil: "domcontentloaded" });

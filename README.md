@@ -167,7 +167,7 @@ Run a usability test. This is the default command.
 Whisker looks for your Anthropic API key in this order:
 
 1. `ANTHROPIC_API_KEY` environment variable
-2. `~/.whisker/config.json` (set via `whisker setup`)
+2. `~/.config/whisker/config.json` (set via `whisker setup`)
 
 ### Requirements
 

@@ -108,17 +108,15 @@ async function navigationPhase(
     // Process content blocks
     const toolResults: BetaToolResultBlockParam[] = [];
     let hasToolUse = false;
-    let currentThinking = "";
 
-    // First pass: collect thinking text
+    // First pass: collect thinking text as observations
     for (const block of response.content) {
       if (block.type === "text") {
         observations.push(block.text);
-        currentThinking += block.text + " ";
       }
     }
 
-    // Second pass: process tool uses with the collected thinking
+    // Second pass: process tool uses
     for (const block of response.content) {
       if (block.type === "tool_use") {
         hasToolUse = true;

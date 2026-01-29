@@ -1,18 +1,25 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import path from "path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { runSession } from "./agent.js";
 import { writeReport } from "./report.js";
 import { WhiskerConfig } from "./types.js";
 import { getApiKey, runSetup, getConfigPath, deleteApiKey } from "./config.js";
-import { printBanner, printConfig, printResults, printError } from "./ui.js";
+import { printConfig, printResults, printError } from "./ui.js";
+
+// Read version from package.json
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf-8"));
+const VERSION = packageJson.version;
 
 const program = new Command();
 
 program
   .name("whisker")
   .description("AI-powered usability testing CLI using Claude computer use")
-  .version("0.1.0");
+  .version(VERSION);
 
 // Setup command
 program
@@ -88,10 +95,10 @@ program
     };
 
     // Print banner and config
-    printBanner();
     printConfig(
       config.task,
       config.url,
+      VERSION,
       config.persona,
       config.maxSteps,
       `${config.viewport.width}x${config.viewport.height}`
@@ -99,20 +106,14 @@ program
 
     try {
       const { report, sessionLog } = await runSession(config);
-      const { markdownPath, jsonPath, screenshotDir } = await writeReport(
-        report,
-        sessionLog,
-        config.outputDir
-      );
+      await writeReport(report, sessionLog, config.outputDir, VERSION);
 
-      // Print results with the new UI
-      const absoluteOutputDir = path.resolve(config.outputDir);
+      // Print results
       printResults(
         report.taskCompleted,
         report.summary,
         report.findings,
-        config.outputDir,
-        absoluteOutputDir
+        config.outputDir
       );
     } catch (err) {
       printError(err instanceof Error ? err.message : String(err));
