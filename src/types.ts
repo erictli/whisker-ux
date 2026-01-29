@@ -5,6 +5,8 @@ export interface WhiskerConfig {
   maxSteps: number;
   viewport: { width: number; height: number };
   outputDir: string;
+  interactiveLogin?: boolean;
+  authStateName?: string;
 }
 
 export interface ComputerAction {

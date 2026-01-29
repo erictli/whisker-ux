@@ -12,7 +12,7 @@ import {
   WhiskerReport,
   Finding,
 } from "./types.js";
-import { printTestStart, startSpinner, stopSpinner, startWaitingSpinner, clearSpinner, printStepComplete } from "./ui.js";
+import { printTestStart, startSpinner, stopSpinner, startWaitingSpinner, clearSpinner, printStepComplete, printLoginPrompt, printLoginComplete, waitForEnterKey } from "./ui.js";
 
 const MODEL = "claude-sonnet-4-5-20250929";
 const MAX_SCREENSHOTS_FOR_ANALYSIS = 10; // Limit screenshots sent to analysis phase
@@ -34,6 +34,17 @@ export async function runSession(config: WhiskerConfig): Promise<{
   try {
     startSpinner("Launching browser...");
     await browser.launch();
+    stopSpinner("Browser launched");
+
+    // Interactive login: pause for user to log in manually
+    if (config.interactiveLogin) {
+      printLoginPrompt();
+      await waitForEnterKey();
+      printLoginComplete();
+    }
+
+    startSpinner("Navigating to URL...");
+    await browser.navigateToUrl();
     stopSpinner(`Browser ready at ${config.url}`);
 
     const sessionLog = await navigationPhase(client, browser, config);

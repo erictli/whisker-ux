@@ -1,5 +1,6 @@
 import { chromium, Browser, Page, BrowserContext } from "playwright";
 import { ComputerAction, NetworkFailure, WhiskerConfig } from "./types.js";
+import { getAuthStatePath } from "./config.js";
 
 function mapKeyNames(key: string): string {
   const keyMap: Record<string, string> = {
@@ -60,11 +61,17 @@ export class BrowserManager {
       ],
     });
 
+    // Load saved auth state if specified
+    const storageState = this.config.authStateName
+      ? getAuthStatePath(this.config.authStateName)
+      : undefined;
+
     this.context = await this.browser.newContext({
       viewport: {
         width: this.config.viewport.width,
         height: this.config.viewport.height,
       },
+      storageState,
     });
 
     this.page = await this.context.newPage();
@@ -143,8 +150,16 @@ export class BrowserManager {
         });
       });
     });
+  }
 
+  async navigateToUrl(): Promise<void> {
+    if (!this.page) throw new Error("Browser not launched");
     await this.page.goto(this.config.url, { waitUntil: "domcontentloaded" });
+  }
+
+  async saveStorageState(path: string): Promise<void> {
+    if (!this.context) throw new Error("Browser not launched");
+    await this.context.storageState({ path });
   }
 
   async takeScreenshot(): Promise<string> {
