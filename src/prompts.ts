@@ -63,7 +63,10 @@ Return ONLY a valid JSON object (no markdown fences, no extra text) matching thi
       "stepsToReproduce": ["Step 1", "Step 2"],
       "screenshotStepNumber": 5,
       "suggestedFix": "Actionable suggestion for how to fix this",
-      "grepPatterns": ["patterns to search the codebase for relevant code"]
+      "grepPatterns": ["patterns to search the codebase for relevant code"],
+      "pageUrl": "URL where the issue occurred (from the step's Page info)",
+      "elementSelector": "CSS selector of the problematic element (from the step's Element info)",
+      "elementText": "Text content of the element (from the step's Element info)"
     }
   ]
 }
@@ -80,5 +83,12 @@ Return ONLY a valid JSON object (no markdown fences, no extra text) matching thi
 - For grepPatterns, suggest patterns that would help find relevant code: CSS class names, button text, component names, API endpoints
 - Only report genuine issues backed by evidence from the session, not speculative concerns
 - Consolidate duplicate or overlapping observations into single findings
-- Order findings by severity (critical first, then major, minor, suggestion)`;
+- Order findings by severity (critical first, then major, minor, suggestion)
+
+## Element Context
+The session log includes element context for each interaction step:
+- [Page: URL] - the URL at that step
+- [Element: selector "text"] - the CSS selector and visible text of the clicked element
+
+Use this context to populate pageUrl, elementSelector, and elementText in each finding. This helps developers quickly locate the relevant code to fix each issue.`;
 }

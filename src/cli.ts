@@ -5,7 +5,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runSession } from "./agent.js";
 import { writeReport } from "./report.js";
-import { WhiskerConfig } from "./types.js";
+import { WhiskerConfig, ModelChoice } from "./types.js";
 import { getApiKey, runSetup, getConfigPath, deleteApiKey, listAuthStates, deleteAuthState, authStateExists, getAuthDir } from "./config.js";
 import { printConfig, printResults, printError } from "./ui.js";
 import { runAuthCapture } from "./auth.js";
@@ -19,6 +19,7 @@ interface RunOptions {
   login?: boolean;
   auth?: string;
   screenshotWindow: string;
+  model: string;
 }
 
 // Validate auth state name to prevent path traversal attacks
@@ -75,6 +76,7 @@ program
   .option("-l, --login", "Pause for manual login before AI takes over")
   .option("-a, --auth <name>", "Use saved authentication state")
   .option("-w, --screenshot-window <number>", "Screenshots to keep in context (reduces token usage)", "5")
+  .option("--model <model>", "Claude model: sonnet (default), opus, haiku", "sonnet")
   .action(async (task: string, opts: RunOptions) => {
     // Get API key from config or environment
     const apiKey = getApiKey();
@@ -155,6 +157,13 @@ program
       process.exit(1);
     }
 
+    // Validate model
+    const validModels = ['sonnet', 'opus', 'haiku'];
+    if (!validModels.includes(opts.model)) {
+      printError(`Invalid model "${opts.model}". Must be one of: ${validModels.join(', ')}`);
+      process.exit(1);
+    }
+
     const config: WhiskerConfig = {
       task,
       url: opts.url,
@@ -165,6 +174,7 @@ program
       interactiveLogin: opts.login,
       authStateName: opts.auth,
       screenshotWindow,
+      model: opts.model as ModelChoice,
     };
 
     // Print banner and config

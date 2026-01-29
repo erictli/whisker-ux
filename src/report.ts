@@ -108,6 +108,19 @@ function generateMarkdown(report: WhiskerReport, version: string): string {
       lines.push(`#### ${finding.id}: ${finding.title}`);
       lines.push("");
       lines.push(`**Category:** ${finding.category}`);
+      if (finding.pageUrl) {
+        lines.push(`**Page:** ${finding.pageUrl}`);
+      }
+      if (finding.elementSelector || finding.elementText) {
+        let elementLine = "**Element:**";
+        if (finding.elementSelector) {
+          elementLine += ` \`${finding.elementSelector}\``;
+        }
+        if (finding.elementText) {
+          elementLine += ` — "${finding.elementText}"`;
+        }
+        lines.push(elementLine);
+      }
       lines.push("");
       lines.push(finding.description);
       lines.push("");

@@ -1,3 +1,12 @@
+// Model selection
+export type ModelChoice = 'sonnet' | 'opus' | 'haiku';
+
+export const MODEL_CONFIG: Record<ModelChoice, { modelId: string; betaFlag: string }> = {
+  sonnet: { modelId: 'claude-sonnet-4-5-20250929', betaFlag: 'computer-use-2025-01-24' },
+  opus: { modelId: 'claude-opus-4-5-20251101', betaFlag: 'computer-use-2025-11-24' },
+  haiku: { modelId: 'claude-haiku-4-5-20251001', betaFlag: 'computer-use-2025-01-24' },
+};
+
 export interface WhiskerConfig {
   task: string;
   url: string;
@@ -8,6 +17,7 @@ export interface WhiskerConfig {
   interactiveLogin?: boolean;
   authStateName?: string;
   screenshotWindow?: number; // Number of screenshots to keep in navigation context (default: 5)
+  model: ModelChoice;
 }
 
 export interface ComputerAction {
@@ -19,11 +29,22 @@ export interface ComputerAction {
   scroll_amount?: number;
 }
 
+// Element context captured at click time
+export interface ElementContext {
+  tagName: string;
+  text: string;
+  selector: string;
+  id?: string;
+  className?: string;
+}
+
 export interface SessionStep {
   stepNumber: number;
   action: ComputerAction;
   screenshotBase64: string;
   timestamp: number;
+  pageUrl: string;
+  elementContext?: ElementContext;
 }
 
 export interface NetworkFailure {
@@ -60,6 +81,9 @@ export interface Finding {
   screenshotStepNumber?: number;
   suggestedFix?: string;
   grepPatterns?: string[];
+  pageUrl?: string;
+  elementSelector?: string;
+  elementText?: string;
 }
 
 export interface WhiskerReport {

@@ -11,13 +11,13 @@ import {
   ComputerAction,
   WhiskerReport,
   Finding,
+  MODEL_CONFIG,
+  ElementContext,
 } from "./types.js";
 import { printTestStart, startSpinner, stopSpinner, startWaitingSpinner, clearSpinner, printStepComplete, printLoginPrompt, printLoginComplete, waitForEnterKey } from "./ui.js";
 
-const MODEL = "claude-sonnet-4-5-20250929";
 const MAX_SCREENSHOTS_FOR_ANALYSIS = 10; // Limit screenshots sent to analysis phase
 const DEFAULT_SCREENSHOT_WINDOW = 5; // Keep last N screenshots in navigation context
-const BETA_FLAG = "computer-use-2025-01-24";
 
 type BetaMessage = Anthropic.Beta.Messages.BetaMessage;
 type BetaMessageParam = Anthropic.Beta.Messages.BetaMessageParam;
@@ -151,6 +151,7 @@ async function navigationPhase(
   browser: BrowserManager,
   config: WhiskerConfig
 ): Promise<SessionLog> {
+  const { modelId, betaFlag } = MODEL_CONFIG[config.model];
   const startTime = Date.now();
   const steps: SessionStep[] = [];
   const observations: string[] = [];
@@ -193,12 +194,12 @@ async function navigationPhase(
     let response: BetaMessage;
     try {
       response = await client.beta.messages.create({
-        model: MODEL,
+        model: modelId,
         max_tokens: 4096,
         system: systemPrompt,
         tools: [computerTool],
         messages: prunedMessages,
-        betas: [BETA_FLAG],
+        betas: [betaFlag],
       });
     } catch (err) {
       clearSpinner();
@@ -240,6 +241,13 @@ async function navigationPhase(
         // Show spinner while executing
         startSpinner(`Step ${stepCount}: ${actionDesc}`);
 
+        // Capture element context BEFORE click actions (so we get the element being clicked)
+        let elementContext: ElementContext | undefined;
+        const clickActions = ['left_click', 'right_click', 'double_click', 'triple_click', 'middle_click'];
+        if (clickActions.includes(action.action) && action.coordinate) {
+          elementContext = await browser.getElementContext(action.coordinate[0], action.coordinate[1]);
+        }
+
         // Execute the action
         if (action.action !== "screenshot") {
           try {
@@ -278,6 +286,8 @@ async function navigationPhase(
           action,
           screenshotBase64,
           timestamp: Date.now(),
+          pageUrl: browser.getCurrentUrl(),
+          elementContext,
         });
 
         toolResults.push({
@@ -351,6 +361,7 @@ async function reportPhase(
   client: Anthropic,
   sessionLog: SessionLog
 ): Promise<WhiskerReport> {
+  const { modelId } = MODEL_CONFIG[sessionLog.config.model];
   const systemPrompt = getReportSystemPrompt();
   const sessionSummary = buildSessionSummary(sessionLog);
 
@@ -405,7 +416,7 @@ async function reportPhase(
   });
 
   const response = await client.messages.create({
-    model: MODEL,
+    model: modelId,
     max_tokens: 4096,
     system: systemPrompt,
     messages: [
@@ -456,7 +467,7 @@ async function reportPhase(
       timestamp: new Date(sessionLog.startTime).toISOString(),
       duration: sessionLog.endTime - sessionLog.startTime,
       totalSteps: sessionLog.steps.length,
-      modelUsed: MODEL,
+      modelUsed: modelId,
     },
     summary: parsed.summary,
     findings: parsed.findings || [],
@@ -497,7 +508,19 @@ function buildSessionSummary(sessionLog: SessionLog): string {
   parts.push("## Actions Taken");
   for (const step of sessionLog.steps) {
     const actionDesc = formatAction(step.action);
-    parts.push(`${step.stepNumber}. ${actionDesc}`);
+    let stepLine = `${step.stepNumber}. ${actionDesc}`;
+    if (step.pageUrl) {
+      stepLine += ` [Page: ${step.pageUrl}]`;
+    }
+    if (step.elementContext) {
+      const ec = step.elementContext;
+      stepLine += ` [Element: ${ec.selector}`;
+      if (ec.text) {
+        stepLine += ` "${ec.text.substring(0, 50)}${ec.text.length > 50 ? '...' : ''}"`;
+      }
+      stepLine += `]`;
+    }
+    parts.push(stepLine);
   }
   parts.push("");
 

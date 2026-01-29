@@ -1,5 +1,5 @@
 import { chromium, Browser, Page, BrowserContext } from "playwright";
-import { ComputerAction, NetworkFailure, WhiskerConfig } from "./types.js";
+import { ComputerAction, NetworkFailure, WhiskerConfig, ElementContext } from "./types.js";
 import { getAuthStatePath } from "./config.js";
 
 function mapKeyNames(key: string): string {
@@ -301,5 +301,38 @@ export class BrowserManager {
 
   getNetworkFailures(): NetworkFailure[] {
     return [...this.networkFailures];
+  }
+
+  getCurrentUrl(): string {
+    if (!this.page) return '';
+    return this.page.url();
+  }
+
+  async getElementContext(x: number, y: number): Promise<ElementContext | undefined> {
+    if (!this.page) return undefined;
+    return this.page.evaluate(([x, y]) => {
+      const el = document.elementFromPoint(x, y);
+      if (!el) return undefined;
+      const tagName = el.tagName.toLowerCase();
+      const id = el.id || undefined;
+      const className = el.className && typeof el.className === 'string' ? el.className : undefined;
+      // Build a simple selector
+      let selector = tagName;
+      if (id) {
+        selector = `#${id}`;
+      } else if (className) {
+        const firstClass = className.split(' ').filter(c => c)[0];
+        if (firstClass) {
+          selector = `${tagName}.${firstClass}`;
+        }
+      }
+      return {
+        tagName,
+        text: (el.textContent || '').trim().substring(0, 100),
+        selector,
+        id,
+        className,
+      };
+    }, [x, y]);
   }
 }
