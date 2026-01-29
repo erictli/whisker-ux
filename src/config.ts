@@ -10,13 +10,49 @@ interface WhiskerGlobalConfig {
   anthropicApiKey?: string;
 }
 
+// Load API key from .env files in current directory
+// Checks .env.local first (for local overrides), then .env
+function loadFromEnvFile(): string | undefined {
+  const cwd = process.cwd();
+  const envFiles = [".env.local", ".env"];
+
+  for (const filename of envFiles) {
+    const envPath = path.join(cwd, filename);
+    try {
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, "utf-8");
+        // Match ANTHROPIC_API_KEY=value with:
+        // - Optional leading whitespace
+        // - Optional "export" keyword
+        // - Optional spaces around "="
+        // - Optional quotes around value
+        const match = content.match(
+          /^\s*(?:export\s+)?ANTHROPIC_API_KEY\s*=\s*["']?([^"'\n]+?)["']?\s*$/m
+        );
+        if (match?.[1]?.trim()) {
+          return match[1].trim();
+        }
+      }
+    } catch {
+      // Ignore errors reading this file, try next
+    }
+  }
+  return undefined;
+}
+
 export function getApiKey(): string | undefined {
-  // Environment variable takes precedence
+  // 1. Environment variable takes precedence
   if (process.env.ANTHROPIC_API_KEY) {
     return process.env.ANTHROPIC_API_KEY;
   }
 
-  // Try reading from config file
+  // 2. Try .env file in current directory
+  const envKey = loadFromEnvFile();
+  if (envKey) {
+    return envKey;
+  }
+
+  // 3. Try global config file
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const content = fs.readFileSync(CONFIG_FILE, "utf-8");
@@ -48,6 +84,35 @@ export function saveApiKey(apiKey: string): void {
   fs.chmodSync(CONFIG_FILE, 0o600); // Read/write only for owner
 }
 
+export function saveApiKeyToEnvFile(apiKey: string): void {
+  const envPath = path.join(process.cwd(), ".env");
+  let content = "";
+
+  // Read existing .env content if it exists
+  try {
+    if (fs.existsSync(envPath)) {
+      content = fs.readFileSync(envPath, "utf-8");
+      // Remove existing ANTHROPIC_API_KEY line if present (with optional export prefix)
+      content = content.replace(/^\s*(?:export\s+)?ANTHROPIC_API_KEY\s*=.*\n?/m, "");
+    }
+  } catch {
+    // Start fresh
+  }
+
+  // Add the API key
+  const newLine = `ANTHROPIC_API_KEY=${apiKey}\n`;
+  content = content.trim() ? content.trim() + "\n" + newLine : newLine;
+
+  fs.writeFileSync(envPath, content);
+
+  // Set secure permissions (read/write only for owner)
+  try {
+    fs.chmodSync(envPath, 0o600);
+  } catch {
+    // Ignore errors on platforms that don't support POSIX permissions
+  }
+}
+
 export async function runSetup(): Promise<void> {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -74,23 +139,43 @@ export async function runSetup(): Promise<void> {
       rl.close();
       return;
     }
+    console.log("");
   }
 
   const apiKey = await question("Enter your Anthropic API key: ");
-  rl.close();
 
   if (!apiKey.trim()) {
     console.log("No key provided. Setup cancelled.");
+    rl.close();
     return;
   }
 
   if (!apiKey.startsWith("sk-ant-")) {
     console.log("Warning: Key doesn't look like an Anthropic API key (should start with sk-ant-)");
+    console.log("");
   }
 
-  saveApiKey(apiKey.trim());
+  // Ask where to save
   console.log("");
-  console.log(`API key saved to ${CONFIG_FILE}`);
+  console.log("Where should I save the key?");
+  console.log("  1. .env file in current directory (good for this project only)");
+  console.log(`  2. Global config at ${CONFIG_FILE} (works everywhere)`);
+  console.log("");
+  const saveChoice = (await question("Choice (1 or 2, default 2): ")).trim();
+  rl.close();
+
+  const trimmedKey = apiKey.trim();
+  if (saveChoice === "1") {
+    saveApiKeyToEnvFile(trimmedKey);
+    console.log("");
+    console.log("API key saved to .env file in current directory");
+    console.log("Note: Add .env to your .gitignore to keep it secret!");
+  } else {
+    saveApiKey(trimmedKey);
+    console.log("");
+    console.log(`API key saved to ${CONFIG_FILE}`);
+  }
+
   console.log("You're ready to use Whisker!");
 }
 
