@@ -21,8 +21,14 @@ function loadFromEnvFile(): string | undefined {
     try {
       if (fs.existsSync(envPath)) {
         const content = fs.readFileSync(envPath, "utf-8");
-        // Match ANTHROPIC_API_KEY=value (with optional quotes)
-        const match = content.match(/^ANTHROPIC_API_KEY=["']?([^"'\n]+)["']?$/m);
+        // Match ANTHROPIC_API_KEY=value with:
+        // - Optional leading whitespace
+        // - Optional "export" keyword
+        // - Optional spaces around "="
+        // - Optional quotes around value
+        const match = content.match(
+          /^\s*(?:export\s+)?ANTHROPIC_API_KEY\s*=\s*["']?([^"'\n]+?)["']?\s*$/m
+        );
         if (match?.[1]?.trim()) {
           return match[1].trim();
         }
@@ -86,8 +92,8 @@ export function saveApiKeyToEnvFile(apiKey: string): void {
   try {
     if (fs.existsSync(envPath)) {
       content = fs.readFileSync(envPath, "utf-8");
-      // Remove existing ANTHROPIC_API_KEY line if present
-      content = content.replace(/^ANTHROPIC_API_KEY=.*\n?/m, "");
+      // Remove existing ANTHROPIC_API_KEY line if present (with optional export prefix)
+      content = content.replace(/^\s*(?:export\s+)?ANTHROPIC_API_KEY\s*=.*\n?/m, "");
     }
   } catch {
     // Start fresh
@@ -98,6 +104,13 @@ export function saveApiKeyToEnvFile(apiKey: string): void {
   content = content.trim() ? content.trim() + "\n" + newLine : newLine;
 
   fs.writeFileSync(envPath, content);
+
+  // Set secure permissions (read/write only for owner)
+  try {
+    fs.chmodSync(envPath, 0o600);
+  } catch {
+    // Ignore errors on platforms that don't support POSIX permissions
+  }
 }
 
 export async function runSetup(): Promise<void> {
@@ -148,7 +161,7 @@ export async function runSetup(): Promise<void> {
   console.log("  1. .env file in current directory (good for this project only)");
   console.log(`  2. Global config at ${CONFIG_FILE} (works everywhere)`);
   console.log("");
-  const saveChoice = await question("Choice (1 or 2, default 2): ");
+  const saveChoice = (await question("Choice (1 or 2, default 2): ")).trim();
   rl.close();
 
   const trimmedKey = apiKey.trim();

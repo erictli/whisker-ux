@@ -35,21 +35,24 @@ npm install -g whisker-ux
 
 ### 2. Get Your API Key
 
-Get an Anthropic API key from: https://console.anthropic.com/settings/keys
+Get an Anthropic API key from: <https://console.anthropic.com/settings/keys>
 
 ### 3. Set Up Your Key
 
-**Option A: Interactive setup (recommended)**
+#### Option A: Interactive setup (recommended)
+
 ```bash
 whisker setup
 ```
 
-**Option B: Create a .env file**
+#### Option B: Create a .env file
+
 ```bash
 echo "ANTHROPIC_API_KEY=sk-ant-your-key-here" > .env
 ```
 
-**Option C: Environment variable**
+#### Option C: Environment variable
+
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
