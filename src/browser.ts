@@ -150,7 +150,8 @@ export class BrowserManager {
   async takeScreenshot(): Promise<string> {
     if (!this.page) throw new Error("Browser not launched");
     const buffer = await this.page.screenshot({
-      type: "png",
+      type: "jpeg",
+      quality: 85,
       fullPage: false,
     });
     return buffer.toString("base64");

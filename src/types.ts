@@ -5,6 +5,7 @@ export interface WhiskerConfig {
   maxSteps: number;
   viewport: { width: number; height: number };
   outputDir: string;
+  screenshotWindow?: number; // Number of screenshots to keep in navigation context (default: 5)
 }
 
 export interface ComputerAction {
