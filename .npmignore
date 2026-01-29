@@ -9,6 +9,7 @@ tsconfig.json
 .github/
 TODO.md
 .claude/
+CLAUDE.md
 
 # IDE
 .idea/
