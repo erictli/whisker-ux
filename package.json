@@ -1,6 +1,6 @@
 {
   "name": "whisker-ux",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "AI-powered usability testing CLI using Claude computer use",
   "type": "module",
   "bin": {
