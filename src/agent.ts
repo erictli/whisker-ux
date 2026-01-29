@@ -28,17 +28,22 @@ type BetaToolResultBlockParam = Anthropic.Beta.Messages.BetaToolResultBlockParam
  * Prunes old screenshots from messages to reduce token usage.
  * Keeps only the last `maxScreenshots` screenshots, replacing older ones with text placeholders.
  * This dramatically reduces context size for long sessions while preserving recent visual context.
+ *
+ * Tracks individual (messageIndex, blockIndex) pairs to handle messages with multiple screenshots correctly.
  */
 function pruneOldScreenshots(
   messages: BetaMessageParam[],
   maxScreenshots: number
 ): BetaMessageParam[] {
-  // Find all message indices that contain screenshots (in reverse order)
-  const screenshotMsgIndices: number[] = [];
+  // Find all screenshot locations as (messageIndex, blockIndex) pairs, newest first
+  const screenshotLocations: Array<{ msgIdx: number; blockIdx: number }> = [];
+
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     if (msg.role === "user" && Array.isArray(msg.content)) {
-      for (const block of msg.content) {
+      // Iterate blocks in reverse to maintain newest-first order within each message
+      for (let j = msg.content.length - 1; j >= 0; j--) {
+        const block = msg.content[j];
         if (
           typeof block === "object" &&
           block !== null &&
@@ -52,7 +57,7 @@ function pruneOldScreenshots(
               typeof c === "object" && c !== null && "type" in c && (c as { type: string }).type === "image"
           );
           if (hasImage) {
-            screenshotMsgIndices.push(i);
+            screenshotLocations.push({ msgIdx: i, blockIdx: j });
           }
         }
       }
@@ -60,19 +65,28 @@ function pruneOldScreenshots(
   }
 
   // If within limit, return as-is
-  if (screenshotMsgIndices.length <= maxScreenshots) {
+  if (screenshotLocations.length <= maxScreenshots) {
     return messages;
   }
 
-  // Indices to prune (older screenshots beyond the window)
-  const indicesToPrune = new Set(screenshotMsgIndices.slice(maxScreenshots));
+  // Build set of block locations to prune (older screenshots beyond the window)
+  const locationsToPrune = new Set(
+    screenshotLocations.slice(maxScreenshots).map(loc => `${loc.msgIdx}:${loc.blockIdx}`)
+  );
 
-  // Create pruned copy
-  return messages.map((msg, idx) => {
-    if (!indicesToPrune.has(idx)) return msg;
-
+  // Create pruned copy, only replacing specific blocks
+  return messages.map((msg, msgIdx) => {
     if (msg.role === "user" && Array.isArray(msg.content)) {
-      const newContent = msg.content.map((block) => {
+      // Check if any blocks in this message need pruning
+      const hasBlocksToPrune = msg.content.some((_, blockIdx) =>
+        locationsToPrune.has(`${msgIdx}:${blockIdx}`)
+      );
+
+      if (!hasBlocksToPrune) return msg;
+
+      const newContent = msg.content.map((block, blockIdx) => {
+        if (!locationsToPrune.has(`${msgIdx}:${blockIdx}`)) return block;
+
         if (
           typeof block === "object" &&
           block !== null &&
@@ -81,17 +95,11 @@ function pruneOldScreenshots(
           "content" in block &&
           Array.isArray(block.content)
         ) {
-          const hasImage = block.content.some(
-            (c: unknown) =>
-              typeof c === "object" && c !== null && "type" in c && (c as { type: string }).type === "image"
-          );
-          if (hasImage) {
-            // Replace image content with text placeholder
-            return {
-              ...block,
-              content: "[Screenshot removed from context to save tokens]",
-            };
-          }
+          // Replace image content with text placeholder
+          return {
+            ...block,
+            content: "[Screenshot removed from context to save tokens]",
+          };
         }
         return block;
       });
