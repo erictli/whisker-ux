@@ -65,7 +65,7 @@ whisker "Find the pricing page" --url https://your-site.com
 
 ### 5. View Results
 
-Open `.whisker/report.md` to see the findings.
+Reports are saved to `~/.cache/whisker/<timestamp>/`. The path is printed when the test completes.
 
 ---
 
@@ -99,7 +99,7 @@ whisker <task> --url <url> [options]
 | `-p, --persona <persona>` | Persona description for the tester | - |
 | `-m, --max-steps <number>` | Maximum navigation steps | 50 |
 | `-v, --viewport <WxH>` | Viewport size | 1280x800 |
-| `-o, --output <dir>` | Output directory | .whisker |
+| `-o, --output <dir>` | Output directory | ~/.cache/whisker/\<timestamp\> |
 | `-l, --login` | Pause for manual login before AI takes over | - |
 | `-a, --auth <name>` | Use saved authentication state | - |
 | `-w, --screenshot-window <n>` | Screenshots to keep in context (reduces tokens) | 5 |
@@ -174,14 +174,22 @@ Auth states are stored in `~/.config/whisker/auth/` with restricted permissions.
 
 Whisker generates a report with task completion status, a summary, and detailed findings organized by severity (P0-P3). Each finding includes reproduction steps, screenshot references, and suggested fixes.
 
+By default, reports are saved to `~/.cache/whisker/<timestamp>/` to keep your project directory clean. Sessions older than 7 days are automatically pruned on each run.
+
 ```
-.whisker/
+~/.cache/whisker/2024-01-29_10-30-00/
 ├── report.md           # Human-readable findings report
 ├── report.json         # Structured JSON for automation
 └── screenshots/
     ├── step-001.png
     ├── step-002.png
     └── ...
+```
+
+To save reports in your project instead, use `-o`:
+
+```bash
+whisker "Find pricing" --url https://example.com -o ./reports
 ```
 
 ## Commands
@@ -209,6 +217,15 @@ List all saved authentication states.
 ### `whisker auth delete <name>`
 
 Delete a saved authentication state.
+
+### `whisker clean`
+
+Remove cached test sessions. By default, removes sessions older than 7 days. Use `--all` to remove all sessions.
+
+```bash
+whisker clean        # Remove sessions older than 7 days
+whisker clean --all  # Remove all cached sessions
+```
 
 ## Configuration
 
