@@ -122,16 +122,16 @@ export async function runSession(config: WhiskerConfig): Promise<{
     await browser.launch();
     stopSpinner("Browser launched");
 
+    startSpinner("Navigating to URL...");
+    await browser.navigateToUrl();
+    stopSpinner(`Browser ready at ${config.url}`);
+
     // Interactive login: pause for user to log in manually
     if (config.interactiveLogin) {
       printLoginPrompt();
       await waitForEnterKey();
       printLoginComplete();
     }
-
-    startSpinner("Navigating to URL...");
-    await browser.navigateToUrl();
-    stopSpinner(`Browser ready at ${config.url}`);
 
     const sessionLog = await navigationPhase(client, browser, config);
     printStepComplete(`Navigation complete (${sessionLog.steps.length} steps)`);
