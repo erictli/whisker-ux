@@ -129,6 +129,25 @@ program
       process.exit(1);
     }
 
+    // Ensure --login and --auth are mutually exclusive
+    if (opts.login && opts.auth) {
+      printError(
+        `Cannot use --login and --auth together.\n` +
+        `Use --login for manual login, or --auth to use saved authentication state.`
+      );
+      process.exit(1);
+    }
+
+    // Validate auth state file exists
+    if (opts.auth && !authStateExists(opts.auth)) {
+      printError(
+        `Auth state "${opts.auth}" not found.\n\n` +
+        `Save it first with:\n` +
+        `  whisker auth save ${opts.auth} --url <login-url>`
+      );
+      process.exit(1);
+    }
+
     // Parse screenshot window
     const screenshotWindow = parseInt(opts.screenshotWindow, 10);
     if (isNaN(screenshotWindow) || screenshotWindow <= 0) {
