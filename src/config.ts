@@ -6,6 +6,9 @@ import * as readline from "node:readline";
 const CONFIG_DIR = path.join(os.homedir(), ".config", "whisker");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 const AUTH_DIR = path.join(CONFIG_DIR, "auth");
+const CACHE_DIR = path.join(os.homedir(), ".cache", "whisker");
+
+const SESSION_RETENTION_DAYS = 7;
 
 interface WhiskerGlobalConfig {
   anthropicApiKey?: string;
@@ -281,4 +284,104 @@ export function deleteAuthState(name: string): boolean {
 
 export function getAuthDir(): string {
   return AUTH_DIR;
+}
+
+// Session cache management
+
+export interface SessionInfo {
+  name: string;
+  createdAt: Date;
+  path: string;
+}
+
+export function getCacheDir(): string {
+  return CACHE_DIR;
+}
+
+/**
+ * Generates a new session directory path with timestamp.
+ * Format: ~/.cache/whisker/2024-01-29_10-30-00
+ */
+export function generateSessionDir(): string {
+  const now = new Date();
+  const timestamp = now.toISOString()
+    .replace(/[:.]/g, "-")
+    .replace("T", "_")
+    .slice(0, 19);
+  return path.join(CACHE_DIR, timestamp);
+}
+
+/**
+ * Lists all cached sessions, sorted by creation time (newest first).
+ */
+export function listSessions(): SessionInfo[] {
+  const sessions: SessionInfo[] = [];
+
+  try {
+    if (!fs.existsSync(CACHE_DIR)) {
+      return sessions;
+    }
+
+    const dirs = fs.readdirSync(CACHE_DIR);
+    for (const dir of dirs) {
+      const dirPath = path.join(CACHE_DIR, dir);
+      try {
+        const stat = fs.statSync(dirPath);
+        if (stat.isDirectory()) {
+          sessions.push({
+            name: dir,
+            createdAt: stat.birthtime,
+            path: dirPath,
+          });
+        }
+      } catch {
+        // Skip entries that can't be read
+      }
+    }
+  } catch {
+    // Ignore directory read errors
+  }
+
+  return sessions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+/**
+ * Deletes sessions older than the specified number of days.
+ * Returns the number of sessions deleted.
+ */
+export function pruneOldSessions(days: number = SESSION_RETENTION_DAYS): number {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  let deleted = 0;
+
+  for (const session of listSessions()) {
+    if (session.createdAt.getTime() < cutoff) {
+      try {
+        fs.rmSync(session.path, { recursive: true, force: true });
+        deleted++;
+      } catch {
+        // Ignore deletion errors
+      }
+    }
+  }
+
+  return deleted;
+}
+
+/**
+ * Deletes all cached sessions.
+ * Returns the number of sessions deleted.
+ */
+export function cleanAllSessions(): number {
+  let deleted = 0;
+
+  for (const session of listSessions()) {
+    try {
+      fs.rmSync(session.path, { recursive: true, force: true });
+      deleted++;
+    } catch {
+      // Ignore deletion errors
+    }
+  }
+
+  return deleted;
 }

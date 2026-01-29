@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { runSession } from "./agent.js";
 import { writeReport } from "./report.js";
 import { WhiskerConfig } from "./types.js";
-import { getApiKey, runSetup, getConfigPath, deleteApiKey, listAuthStates, deleteAuthState, authStateExists, getAuthDir } from "./config.js";
+import { getApiKey, runSetup, getConfigPath, deleteApiKey, listAuthStates, deleteAuthState, authStateExists, getAuthDir, generateSessionDir, pruneOldSessions, listSessions, cleanAllSessions, getCacheDir } from "./config.js";
 import { printConfig, printResults, printError } from "./ui.js";
 import { runAuthCapture } from "./auth.js";
 
@@ -15,7 +15,7 @@ interface RunOptions {
   persona?: string;
   maxSteps: string;
   viewport: string;
-  output: string;
+  output?: string;
   login?: boolean;
   auth?: string;
   screenshotWindow: string;
@@ -62,6 +62,33 @@ program
     }
   });
 
+// Clean command
+program
+  .command("clean")
+  .description("Remove cached test sessions")
+  .option("-a, --all", "Remove all sessions (default: only sessions older than 7 days)")
+  .action((opts: { all?: boolean }) => {
+    const sessions = listSessions();
+    if (sessions.length === 0) {
+      console.log("No cached sessions found.");
+      return;
+    }
+
+    const deleted = opts.all ? cleanAllSessions() : pruneOldSessions();
+
+    if (deleted === 0) {
+      console.log(`No sessions to clean (${sessions.length} session(s) less than 7 days old).`);
+      console.log("Use --all to remove all sessions.");
+    } else {
+      console.log(`Removed ${deleted} session(s).`);
+      const remaining = sessions.length - deleted;
+      if (remaining > 0) {
+        console.log(`${remaining} session(s) remaining.`);
+      }
+    }
+    console.log(`Cache directory: ${getCacheDir()}`);
+  });
+
 // Run command (main functionality)
 program
   .command("run", { isDefault: true })
@@ -71,7 +98,7 @@ program
   .option("-p, --persona <persona>", "Persona description for the tester")
   .option("-m, --max-steps <number>", "Maximum number of steps", "50")
   .option("-v, --viewport <WxH>", "Viewport size (e.g., 1280x800)", "1280x800")
-  .option("-o, --output <dir>", "Output directory", ".whisker")
+  .option("-o, --output <dir>", "Output directory (default: ~/.cache/whisker/<timestamp>)")
   .option("-l, --login", "Pause for manual login before AI takes over")
   .option("-a, --auth <name>", "Use saved authentication state")
   .option("-w, --screenshot-window <number>", "Screenshots to keep in context (reduces token usage)", "5")
@@ -155,13 +182,21 @@ program
       process.exit(1);
     }
 
+    // Use provided output dir or generate a new session directory
+    const outputDir = opts.output ?? generateSessionDir();
+
+    // Auto-prune old sessions (only when using cache directory)
+    if (!opts.output) {
+      pruneOldSessions();
+    }
+
     const config: WhiskerConfig = {
       task,
       url: opts.url,
       persona: opts.persona,
       maxSteps,
       viewport: { width, height },
-      outputDir: opts.output,
+      outputDir,
       interactiveLogin: opts.login,
       authStateName: opts.auth,
       screenshotWindow,
