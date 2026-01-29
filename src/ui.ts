@@ -1,3 +1,5 @@
+import os from "os";
+
 // ANSI color codes - no dependencies needed
 const colors = {
   reset: "\x1b[0m",
@@ -348,9 +350,10 @@ export function printResults(
   console.log("");
   console.log(`${c.brightWhite}${c.bold}OUTPUT FILES${c.reset}`);
   console.log("");
-  console.log(`${c.dim}Report:${c.reset}      ${outputDir}/report.md`);
-  console.log(`${c.dim}JSON:${c.reset}        ${outputDir}/report.json`);
-  console.log(`${c.dim}Screenshots:${c.reset} ${outputDir}/screenshots/`);
+  const displayDir = outputDir.replace(os.homedir(), "~");
+  console.log(`${c.dim}Report:${c.reset}      ${displayDir}/report.md`);
+  console.log(`${c.dim}JSON:${c.reset}        ${displayDir}/report.json`);
+  console.log(`${c.dim}Screenshots:${c.reset} ${displayDir}/screenshots/`);
   console.log("");
   console.log(`${c.dim}Tip: Cmd/Ctrl+click to open files${c.reset}`);
   console.log(`${c.dim}AI agents: Read report.json for structured findings${c.reset}`);
