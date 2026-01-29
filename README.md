@@ -100,6 +100,9 @@ whisker <task> --url <url> [options]
 | `-m, --max-steps <number>` | Maximum navigation steps | 50 |
 | `-v, --viewport <WxH>` | Viewport size | 1280x800 |
 | `-o, --output <dir>` | Output directory | .whisker |
+| `-l, --login` | Pause for manual login before AI takes over | - |
+| `-a, --auth <name>` | Use saved authentication state | - |
+| `-w, --screenshot-window <n>` | Screenshots to keep in context (reduces tokens) | 5 |
 
 ### Examples
 
@@ -129,6 +132,44 @@ whisker "Find pricing information" \
   --max-steps 10
 ```
 
+## Authentication
+
+For testing sites that require login, Whisker offers two approaches:
+
+### Option 1: Interactive Login (`--login`)
+
+Best for: Quick manual testing, 2FA, OAuth, SSO
+
+```bash
+whisker "View order history" --url https://mystore.com/account --login
+```
+
+The browser opens, you log in manually, then press Enter to let Claude take over.
+
+### Option 2: Saved Auth State (`--auth`)
+
+Best for: Repeatable tests, CI/CD pipelines
+
+```bash
+# One-time: save your login session
+whisker auth save mysite --url https://mysite.com/login
+# Log in manually in the browser, then press Enter
+
+# Future runs: reuse saved auth
+whisker "View dashboard" --url https://mysite.com/dashboard --auth mysite
+```
+
+### Managing Auth States
+
+```bash
+whisker auth list              # List saved auth states
+whisker auth delete mysite     # Delete a saved auth state
+```
+
+Auth states are stored in `~/.config/whisker/auth/` with restricted permissions.
+
+> **Note:** Auth states contain session cookies which may expire. Re-save if you get logged out.
+
 ## Output
 
 Whisker generates a report with task completion status, a summary, and detailed findings organized by severity (P0-P3). Each finding includes reproduction steps, screenshot references, and suggested fixes.
@@ -157,6 +198,18 @@ Remove your stored API key.
 
 Run a usability test. This is the default command.
 
+### `whisker auth save <name>`
+
+Save browser authentication state for reuse. Opens a browser for manual login.
+
+### `whisker auth list`
+
+List all saved authentication states.
+
+### `whisker auth delete <name>`
+
+Delete a saved authentication state.
+
 ## Configuration
 
 ### API Key
@@ -183,7 +236,11 @@ const config: WhiskerConfig = {
   url: "https://example.com",
   maxSteps: 50,
   viewport: { width: 1280, height: 800 },
-  outputDir: ".whisker"
+  outputDir: ".whisker",
+  // Optional auth options:
+  // interactiveLogin: true,    // Pause for manual login
+  // authStateName: "mysite",   // Use saved auth state
+  // screenshotWindow: 5,       // Screenshots to keep in context
 };
 
 const { report, sessionLog } = await runSession(config);

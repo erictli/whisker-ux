@@ -8,8 +8,9 @@ AI-powered usability testing CLI using Claude's computer use capability.
 src/
 ├── cli.ts       # CLI entry point (commander)
 ├── agent.ts     # Core logic: navigation + report phases
+├── auth.ts      # Auth state capture flow
 ├── browser.ts   # Playwright browser management
-├── config.ts    # API key loading (.env, global config)
+├── config.ts    # API key loading, auth state management
 ├── prompts.ts   # System prompts for Claude
 ├── report.ts    # Report generation (markdown + JSON)
 ├── types.ts     # TypeScript interfaces
